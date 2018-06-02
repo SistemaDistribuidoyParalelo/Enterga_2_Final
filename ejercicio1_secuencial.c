@@ -125,7 +125,7 @@ int main(int argc,char*argv[]){
     for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<N;k++){
-                parcialAB[i*N+j] +=ul*A[i*N+k]*B[k*N+j];
+                parcialAB[i*N+j] +=A[i*N+k]*B[k*N+j];
             }
         }
     }
@@ -134,7 +134,7 @@ int main(int argc,char*argv[]){
     for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<i+1;k++){
-                parcialLC[i*N+j] +=ul*L[k+((i*(i+1)/2))]*C[j*N+k];
+                parcialLC[i*N+j] +=L[k+((i*(i+1)/2))]*C[j*N+k];
             }
         }
     }
@@ -143,8 +143,7 @@ int main(int argc,char*argv[]){
     for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<j+1;k++){
-                parcialDU[i*N+j] +=ul*D[i*N+k]*U[k+((j*(j+1))/2)];
-
+                parcialDU[i*N+j] +=D[i*N+k]*U[k+((j*(j+1))/2)];
             }
         }
     }
@@ -153,16 +152,17 @@ int main(int argc,char*argv[]){
     for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<N;k++){
-                M[i*N+j] = parcialAB[i*N+j]+parcialLC[i*N+j]+parcialDU[i*N+j];
+                M[i*N+j] = ul*(parcialAB[i*N+j]+parcialLC[i*N+j]+parcialDU[i*N+j]);
             }
         }
     }
+
     gettimeofday(&tv,NULL);
     timetick = tv.tv_sec + tv.tv_usec/1000000.0;
     printf("Tiempo en segundos %f\n", timetick - sec);
     imprimeMatriz(M,1);
 
-
+/*
     for (i = 0; i < N; i++){
         for (j = 0; j < i+1; j++)
         {
@@ -176,12 +176,12 @@ int main(int argc,char*argv[]){
             printf("L[%d] = %f\n", j+((i*(i+1))/2), L[j+((i*(i+1))/2)]);
         }
     }
+    
     printf("\n");
-
     imprimeMatriz(parcialAB,1);
     imprimeMatriz(parcialLC,1);
     imprimeMatriz(parcialDU,1);
-
+*/
     free(A);
     free(B);
     free(C);
