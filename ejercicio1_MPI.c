@@ -3,53 +3,35 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-
-//declaracion de variables
-
-void imprimeMatriz(double *S, int tipo_fc) {
-// Imprime la matriz pasada por parametro
-// N es la cantidad de bloques, r dimension de cada bloque
-  printf(" \n");
-  printf(" \n");
-  if(tipo_fc == 0){
-    for(int i=0;i<N;i++){
-            for(int j=0;j<N;j++){
-                printf("%f  ",S[i+j*N]);
-            }
-            printf(" \n");
-    }
-  }else{
-      for(int i=0;i<N;i++){
-            for(int j=0;j<N;j++){
-                printf("%f  ",S[i*N+j]);
-            }
-            printf(" \n");
-    }
-  }
-}
-
+#include <mpi.h>
 
 //MAIN
 int main(int argc,char*argv[]){
-  int N; // tam de la matriz
+  //int N; // tam de la matriz
   double *A,*B,*C,*D;
   double *L,*U; // matriz triangular L superior U inferior
   double *parcialAB,*parcialLC,*parcialDU; //matrices parciales
+  double *parcialAB_SUB,*parcialLC_SUB,*parcialDU_SUB;
+  double *parcialA,*parcialL,*parcialD,*parcialM;
   double *M; //resultado final
   double ul,u,l,b; // promedios de las matrices U L y B
-  double timetick;
-  double sec;
-  struct timeval tv;
-
+  
 //DECLARACION DE FUNCIONES UTILIZADAS EN EL PROGRAMA
   int i,j,k;
-  if ((argc != 2) || ((N = atoi(argv[1])) <= 0) )
-   {
-     printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
-     exit(1);
-   }
 
+  int N = 4;
+  int T = 2;
+//DECLARACIONES MPI
+    int world_size;
+    int ID;
+    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    int name_len;
+    MPI_Status status;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &ID);
+    MPI_Get_processor_name(processor_name, &name_len);
+  
    //ALOCACION DE MEMORIA PARA LAS MATRICES
     A=(double*)malloc(sizeof(double)*N*N);
     B=(double*)malloc(sizeof(double)*N*N);
@@ -62,15 +44,30 @@ int main(int argc,char*argv[]){
     parcialAB =(double*)malloc(sizeof(double)*N*N);
     parcialLC =(double*)malloc(sizeof(double)*N*N);
     parcialDU =(double*)malloc(sizeof(double)*N*N);
+
+
+    parcialM =(double*)malloc(sizeof(double)*N*N);
+    parcialA =(double*)malloc(sizeof(double)*N*N);
+    parcialL =(double*)malloc(sizeof(double)*N*N);
+    parcialD =(double*)malloc(sizeof(double)*N*N);
+    
+    parcialAB_SUB =(double*)malloc(sizeof(double)*N*N);
+    parcialLC_SUB =(double*)malloc(sizeof(double)*N*N);
+    parcialDU_SUB =(double*)malloc(sizeof(double)*N*N);
+    
     //double num = 0;
     //INICIALIZACION DE LAS MATRICES
-    gettimeofday(&tv,NULL);
-    sec = tv.tv_sec + tv.tv_usec/1000000.0;
+  //  gettimeofday(&tv,NULL);
+    //sec = tv.tv_sec + tv.tv_usec/1000000.0;
     for(i=0;i<N;i++){
         for(j=0;j<N;j++){
             parcialAB[i*N+j]=0;
             parcialLC[i*N+j]=0;
             parcialDU[i*N+j]=0;
+            parcialA[i*N+j]=0;
+            parcialL[i*N+j]=0;
+            parcialM[i*N+j]=0;
+            parcialD[i*N+j]=0;
             A[i*N+j] = 1;
             B[j*N+i] = 1;//ORDENXCOLUMNAS
             C[j*N+i]=1; //ORDENXCOLUMNAS
@@ -92,25 +89,26 @@ int main(int argc,char*argv[]){
     
     // SACO PROMEDIOS QUE NECESITO
     // PROMEDIO b
-    double temp,temp1,temp2,u,l,b;
+    double temp,temp1,temp2;
     temp=0;
     temp1=0;
     temp2=0;
+
     //HAY Q recorer todo asi que no importa la forma
+    
     for(int i=0;i<N;i++){
           for(int j=0;j<N;j++){
               temp+=B[i*N+j];
             }
     }
-
-    for(i=0;i<N;i++){
-        for (j=i;j<N;j++){
+    for(int i=0;i<N;i++){
+        for(int j=i;j<N;j++){
             temp1+=U[i+((j*(j+1))/2)];
         }
     }
 
-	for(i=0;i<N;i++){
-		for(j=0;j<(i+1);j++)
+	for(int i=0;i<N;i++){
+		for(int j=0;j<(i+1);j++)
 		{
 			temp2+=L[j+((i*(i+1)/2))];
 		}
@@ -120,47 +118,80 @@ int main(int argc,char*argv[]){
     u=(temp1/(N*N));
     l=(temp2/(N*N));
     ul=u*l;
-    printf("u = %f  l = %f", u,l);
-    for(int i=0;i<N;i++){
+    printf("u = %f  l = %f \n", u,l);
+
+
+    int inicio = ((N)/T) * (ID);
+    int parcial = ((N)/T) * (ID+1);
+
+    //--------------------------------------------
+    MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, parcialA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(B,N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+
+    for(int i=inicio;i<parcial;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<N;k++){
-                parcialAB[i*N+j] +=A[i*N+k]*B[k*N+j];
+                parcialAB_SUB[i*N+j] += parcialA[i*N+k]*B[k*N+j];
             }
         }
     }
+
+    MPI_Gather(parcialAB_SUB,(N*N)/T,MPI_DOUBLE,parcialAB,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD); 
+    //--------------------------------------------
+
+    //---------------------------------------------
+    MPI_Scatter(L,(((N*(N+1))/2))/T, MPI_DOUBLE, parcialL, (((N*(N+1))/2))/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(C,N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 
     //L es inferior, recorrido parcial
-    for(int i=0;i<N;i++){
+    for(int i=inicio;i<parcial;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<i+1;k++){
-                parcialLC[i*N+j] +=L[k+((i*(i+1)/2))]*C[j*N+k];
+                parcialLC_SUB[i*N+j] +=parcialL[k+((i*(i+1)/2))]*C[j*N+k];
             }
         }
     }
+
+    MPI_Gather(parcialLC_SUB,(N*N)/T,MPI_DOUBLE,parcialLC,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    //-----------------------------------
+
+    MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, parcialD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(U,N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 
     //U es superior
-    for(int i=0;i<N;i++){
+    for(int i=inicio;i<parcial;i++){
         for(int j=0;j<N;j++){
-            for(k = 0;k<j+1;k++){
-                parcialDU[i*N+j] +=D[i*N+k]*U[k+((j*(j+1))/2)];
+            for(k = 0;k
+            
+            <j+1;k++){
+                parcialDU_SUB[i*N+j] +=parcialD[i*N+k]*U[k+((j*(j+1))/2)];
             }
         }
     }
-
-    //Resultado Final
+    MPI_Gather(parcialDU_SUB,(N*N)/T,MPI_DOUBLE,parcialDU,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
             for(k = 0;k<N;k++){
-                M[i*N+j] = ul*(parcialAB[i*N+j]+parcialLC[i*N+j]+parcialDU[i*N+j]);
+                parcialM[i*N+j] = ul*(parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);
             }
         }
     }
 
-    gettimeofday(&tv,NULL);
+    MPI_Gather(M,(N*N)/T,MPI_DOUBLE,parcialM,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
+
+  /*gettimeofday(&tv,NULL);
     timetick = tv.tv_sec + tv.tv_usec/1000000.0;
     printf("Tiempo en segundos %f\n", timetick - sec);
-    imprimeMatriz(M,1);
-
+*/
     /*
     for (i = 0; i < N; i++){
         for (j = 0; j < i+1; j++)
@@ -190,6 +221,17 @@ int main(int argc,char*argv[]){
     free(parcialAB);
     free(parcialLC);
     free(parcialDU);
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+            printf("%f  ",M[i*N+j]);
+        }
+        printf(" \n");
+    }
+    printf(" \n");
+
+    
     free(M);
-    return(0);
+    MPI_Finalize();
 }

@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
 			printf("Procesador %s, id %d -- receive_vector[%d]: %d\n", processor_name, id, i, receive_vector[i]);	
       receive_vector[i]++;   
       }
-  MPI_Gather(receive_vector,2,MPI_INT,vector,2,MPI_INT,0,MPI_COMM_WORLD); 
-  //MPI_Gather(vector,4,MPI_INT, rbuf,100,MPI_INT,root, comm); el root corresponde al hilo 0
+    MPI_Gather(receive_vector,2,MPI_INT,vector,2,MPI_INT,0,MPI_COMM_WORLD); 
+    //MPI_Gather(vector,4,MPI_INT, rbuf,100,MPI_INT,root, comm); el root corresponde al hilo 0
  	for(i=0;i<4;i++){
 		printf("receive_vector[%d]: %d\n",i, vector[i]);	
     receive_vector[i]++;   
