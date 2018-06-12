@@ -20,6 +20,10 @@ int N; //TAMANIO DE LA MATRIZ
 int T; //NROPROCESADORES
 
 //DECLARACION DE FUNCIONES UTILIZADAS EN EL PROGRAMA
+// VARIABLES DE TIEMPO
+double timetick;
+double sec;
+struct timeval tv;
 
 if ((argc != 2))
    {
@@ -97,7 +101,7 @@ for(i=0;i<N;i++){
             pruebaB[i*N+j]=1; //ORDENXFILAS
             pruebaL[j*N+i]=1; //ORDENXCOLUMNAS
             pruebaD[j*N+i]=1; //ORDENXCOLUMNAS
-            
+
             if (i > j){
                 L[i*N+j] = 1; //Almaceno L por filas
             }
@@ -116,7 +120,7 @@ for(i=0;i<N;i++){
     // PROMEDIO b
 
 //HAY Q recorer todo asi que no importa la forma
-    
+
 MPI_Scatter(B,N*N/T, MPI_DOUBLE, pruebaB, N*N/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 temp = omp_sumaTemp(pruebaB,N,T);
 MPI_Allreduce(&temp,&sumTemp,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
@@ -131,49 +135,58 @@ MPI_Allreduce(&temp2,&sumTemp2,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
 u=(temp1/(N*N));
 l=(sumTemp2/(N*N));
 ul=u*l;
-printf("u = %f  l = %f \n", u,l);
+//printf("u = %f  l = %f \n", u,l);
 
-//MULTIPLICACION  A*B
+//COMUNICACION
+
 MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Bcast(B,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-omp_parcialAB(parcialAB_SUB,pruebaA,B,N,T);
-MPI_Gather(parcialAB_SUB,(N*N)/T,MPI_DOUBLE,parcialAB,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-//MULTIPLICACION L*C
 MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+MPI_Bcast(B,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 MPI_Bcast(C,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+
+//TOMO EL TIEMPO DE INICIO
+gettimeofday(&tv,NULL);
+sec = tv.tv_sec + tv.tv_usec/1000000.0;
+
+//MULTIPLICACION  A*B
+
+omp_parcialAB(parcialAB_SUB,pruebaA,B,N,T);
+
+//MULTIPLICACION L*C
+
 omp_parcialLC(parcialLC_SUB,pruebaL,C,N,T,ID);
-MPI_Gather(parcialLC_SUB,(N*N)/T,MPI_DOUBLE,parcialLC,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
 
 //MULTIPLICACION D*U
-MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+
 
 omp_parcialDU(parcialDU_SUB,pruebaD,U,N,T);
 
-MPI_Gather(parcialDU_SUB,(N*N)/T,MPI_DOUBLE,parcialDU,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-
-MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 omp_parcialM(parcialM,parcialAB_SUB,parcialLC_SUB,parcialDU_SUB,ul,N,T);
+
+
 
 MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
 if (ID==0){
+  gettimeofday(&tv,NULL);
+  timetick = tv.tv_sec + tv.tv_usec/1000000.0;
+   printf("Tiempo en segundos %f\n", timetick - sec);
+}
+/*if (ID==0){
   for(i=0;i<N;i++){
         for(j=0;j<N;j++){
             printf("%f  ",M[i*N+j]);
         }
         printf(" \n");
-  }}
+  }}*/
 
 free(A);
 free(B);
