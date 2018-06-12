@@ -14,7 +14,7 @@ double *parcialAB,*parcialLC,*parcialDU,*parcialM; //matrices resultados parcial
 double *parcialAB_SUB,*parcialLC_SUB,*parcialDU_SUB; //matrices distribuidos parciales
 double *pruebaA,*pruebaB,*pruebaL,*pruebaD;// temporales partidas de cada matriz
 double *M; //resultado final
-double sumTemp,sumTemp2,temp,temp1,temp2,u,l,b,ul;
+double sumTemp2,temp,temp1,temp2,u,l,b,ul;
 int i,j,k;
 int N; //TAMANIO DE LA MATRIZ
 int T; //NROPROCESADORES
@@ -121,10 +121,6 @@ for(i=0;i<N;i++){
 
 //HAY Q recorer todo asi que no importa la forma
 
-MPI_Scatter(B,N*N/T, MPI_DOUBLE, pruebaB, N*N/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-temp = omp_sumaTemp(pruebaB,N,T);
-MPI_Allreduce(&temp,&sumTemp,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-
 MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 temp1=omp_sumaTemp1(U,N,T);
 
@@ -138,7 +134,6 @@ ul=u*l;
 //printf("u = %f  l = %f \n", u,l);
 
 //COMUNICACION
-
 MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -180,6 +175,7 @@ if (ID==0){
   timetick = tv.tv_sec + tv.tv_usec/1000000.0;
    printf("Tiempo en segundos %f\n", timetick - sec);
 }
+
 /*if (ID==0){
   for(i=0;i<N;i++){
         for(j=0;j<N;j++){
