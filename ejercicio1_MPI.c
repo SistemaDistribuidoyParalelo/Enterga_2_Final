@@ -5,7 +5,13 @@
 #include <unistd.h>
 #include <mpi.h>
 
-
+double dwalltime(){
+        double sec;
+        struct timeval tv;
+        int tiempo = gettimeofday(&tv,NULL);
+        sec = tv.tv_sec + tv.tv_usec/1000000.0;
+        return sec;
+}
 
 //MAIN
 int main(int argc,char*argv[]){
@@ -20,9 +26,7 @@ int N; //TAMANIO DE LA MATRIZ
 int T; //NROPROCESADORES
 
 // VARIABLES DE TIEMPO
-double timetick;
-double sec;
-struct timeval tv;
+double startComunication, cuentas;
 //DECLARACION DE FUNCIONES UTILIZADAS EN EL PROGRAMA
 
 if ((argc != 2))
@@ -116,37 +120,9 @@ for(i=0;i<N;i++){
         }
 }
 
- // SACO PROMEDIOS QUE NECESITO
-    // PROMEDIO b
-
-//HAY Q recorer todo asi que no importa la forma
-
-//printf("%f \n", sumTemp);
-MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-for(i=0;i<N;i++){
-    for (j=i;j<N;j++){
-        temp1+=U[i+((j*(j+1))/2)];
-    }
-}
-//printf("%f\n", temp1);
-
-
-MPI_Scatter(L,N*N/T, MPI_DOUBLE, pruebaL, N*N/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-for(i=0;i < N/T;i++){
-    for(k=0;k<i+((N/T)*(ID))+1;k++){
-        temp2+=pruebaL[i*N+k];
-	}
-}
-MPI_Allreduce(&temp2,&sumTemp2,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-//printf("%f\n", sumTemp2);
-
-
-b=(sumTemp/(N*N));
-u=(temp1/(N*N));
-l=(sumTemp2/(N*N));
-ul=u*l;
+ 
 //printf("u = %f  l = %f \n", u,l);
-
+startComunication = dwalltime();
 //COMUNICACION
 MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -158,10 +134,36 @@ MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WO
 MPI_Bcast(B,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 MPI_Bcast(C,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+if (ID==0){
+  printf("El tiempo de comunicacion = %f", startComunication - dwalltime());
+}
+cuentas = dwalltime();
 //TOMO EL TIEMPO DE INICIO
-gettimeofday(&tv,NULL);
-sec = tv.tv_sec + tv.tv_usec/1000000.0;
+// SACO PROMEDIOS QUE NECESITO
+    // PROMEDIO b
 
+//HAY Q recorer todo asi que no importa la forma
+
+//printf("%f \n", sumTemp);
+for(i=0;i<N;i++){
+    for (j=i;j<N;j++){
+        temp1+=U[i+((j*(j+1))/2)];
+    }
+}
+//printf("%f\n", temp1);
+
+for(i=0;i < N/T;i++){
+    for(k=0;k<i+((N/T)*(ID))+1;k++){
+        temp2+=pruebaL[i*N+k];
+	}
+}
+
+MPI_Allreduce(&temp2,&sumTemp2,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+//printf("%f\n", sumTemp2);
+
+u=(temp1/(N*N));
+l=(sumTemp2/(N*N));
+ul=u*l;
 //MULTIPLICACION  A*B
 
     for(i=0;i<N/T;i++){
@@ -254,9 +256,7 @@ for(i=0;i<N;i++){
 MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
 if (ID==0){
-  gettimeofday(&tv,NULL);
-  timetick = tv.tv_sec + tv.tv_usec/1000000.0;
-   printf("Tiempo en segundos %f\n", timetick - sec);
+   printf("Tiempo en segundos %f\n", cuentas - dwalltime());
 }
 
 

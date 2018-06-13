@@ -43,7 +43,8 @@ void omp_parcialAB(double *parcialAB_SUB, double *pruebaA, double *B ,int N, int
     int i;
     int k;
     int j;
-   #pragma omp parallel for shared(parcialAB_SUB,pruebaA,B) private(i,j,k)
+   //#pragma omp parallel for shared(parcialAB_SUB,pruebaA,B) private(i,j,k)
+    #pragma omp for nowait schedule(dynamic,T)    
     for(i=0;i<N/T;i++){
         for(j=0;j<N;j++){
             for(k = 0;k<N;k++){
@@ -94,9 +95,9 @@ void omp_parcialM(double *parcialM,double *parcialAB_SUB,double *parcialLC_SUB,d
     int j;
     int k;
     //EN ESTE PRAGMA, SE LE PUEDE COLOCAR EL NOWAIT, como es la suma total, cuando terminen buenisimo.
-
+    #pragma omp for nowait schedule(dynamic,T)
     for(i=0;i<N;i++){
-        #pragma omp parallel for firstprivate(i)
+ //       #pragma omp parallel for firstprivate(i)
         for(j=0;j<N;j++){
             for(k=0;k<N;k++){
                 parcialM[i*N+j] = ul*(parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);

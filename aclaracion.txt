@@ -26,3 +26,8 @@ paralelos8@postgrado8:~/Documentos$ ^C
 
 //El gater solamente une en nun proceso, en este caso indicado sobre el 0-
 
+//Compilacion Hibrido
+mpicc -fopenmp -o mpi_omp ejercicio1_MPI_OMP.c ej1_omp.c 
+mpirun -np 8 -machinefile maquinas mpi_omp 2048
+
+
