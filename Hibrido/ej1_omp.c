@@ -60,17 +60,15 @@ void omp_parcialLC(double *parcialLC_SUB, double *pruebaL, double *C ,int N, int
     int i;
     int j;
     int k;
-    #pragma omp parallel
-    {
-        #pragma omp for schedule(dynamic,T)
-        for(i=0;i<N/T;i++){
-            for(j=0;j<N;j++){
-                for(k = 0;k<i+(N/T*ID)+1;k++){
-                    parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
-                }
+    #pragma omp parallel for schedule(dynamic,T)
+    for(i=0;i<N/T;i++){
+        for(j=0;j<N;j++){
+            for(k = 0;k<i+(N/T*ID)+1;k++){
+                parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
             }
         }
     }
+
 }
 
 //Tercera multiplicacion Parcial DU
@@ -80,8 +78,9 @@ void omp_parcialDU(double *parcialDU_SUB, double *pruebaD, double *U ,int N, int
     int k;
     
     //U es superior, recorrido parcial
+    #pragma omp parallel for schedule(dynamic,T)
     for(i=0;i<N/T;i++){
-        #pragma omp parallel for firstprivate(i)
+        //#pragma omp parallel for firstprivate(i)
         for(j=0;j<N;j++){
             for(k = 0;k<j+1;k++){
                 parcialDU_SUB[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
@@ -97,10 +96,8 @@ void omp_parcialM(double *parcialM,double *parcialAB_SUB,double *parcialLC_SUB,d
     int i;
     int j;
     int k;
-    //EN ESTE PRAGMA, SE LE PUEDE COLOCAR EL NOWAIT, como es la suma total, cuando terminen buenisimo.
-    #pragma omp parallel 
-    {
-        #pragma omp for schedule(dynamic,T)
+    //EN ESTE PRAGMA, SE LE PUEDE COLOCAR EL NOWAIT, como es la suma total, cuando terminen buenisimo
+        #pragma omp parallel for shared(parcialM) private(i,j,k)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                 for(k=0;k<N;k++){
@@ -108,5 +105,5 @@ void omp_parcialM(double *parcialM,double *parcialAB_SUB,double *parcialLC_SUB,d
                 }
             }
         }
-    }
+    
 }
