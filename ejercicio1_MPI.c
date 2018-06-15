@@ -123,6 +123,8 @@ for(i=0;i<N;i++){
  
 //printf("u = %f  l = %f \n", u,l);
 startComunication = dwalltime();
+
+cuentas = dwalltime();
 //COMUNICACION
 MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -137,7 +139,6 @@ MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este ca
 if (ID==0){
   printf("El tiempo de comunicacion = %f", startComunication - dwalltime());
 }
-cuentas = dwalltime();
 //TOMO EL TIEMPO DE INICIO
 // SACO PROMEDIOS QUE NECESITO
     // PROMEDIO b
