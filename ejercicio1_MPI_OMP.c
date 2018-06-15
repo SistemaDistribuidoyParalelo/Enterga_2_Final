@@ -57,7 +57,7 @@ int main(int argc,char*argv[]){
 	//printf("%d\n",world_size);
 	//int inicio = ((N)/T) * (ID);
 	//omp_iniciar(T);
-	omp_set_num_threads(4);
+	omp_set_num_threads(1);
 
 	A=(double*)malloc(sizeof(double)*N*N);
 	B=(double*)malloc(sizeof(double)*N*N);
@@ -96,11 +96,11 @@ int main(int argc,char*argv[]){
 		    parcialAB[i*N+j]=0;
 		    parcialDU[i*N+j]=0;
 		    parcialM[i*N+j]=0;
-
+/*
 		    parcialAB_SUB[i*N+j]=0;
 		    parcialLC_SUB[i*N+j]=0;
 		    parcialDU_SUB[i*N+j]=0;
-
+*/
 
 		    pruebaA[j*N+i]=1; //ORDENXCOLUMNAS
 		    pruebaB[i*N+j]=1; //ORDENXFILAS
@@ -131,11 +131,11 @@ int main(int argc,char*argv[]){
 
 	//COMUNICACION
 	MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+//	MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+//	MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+//	MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(B,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 	MPI_Bcast(C,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
@@ -174,7 +174,7 @@ int main(int argc,char*argv[]){
 	    for(i=0;i<N/T;i++){   
 		for(j=0;j<N;j++){
 		    for(k = 0;k<N;k++){
-		        parcialAB_SUB[i*N+j] += pruebaA[i*N+k]*B[k*N+j];
+		        parcialAB[i*N+j] += pruebaA[i*N+k]*B[k*N+j];
 		    }
 		}
 	    }
@@ -184,7 +184,7 @@ int main(int argc,char*argv[]){
 	    for(i=0;i<N/T;i++){
 		for(j=0;j<N;j++){
 		    for(k = 0;k<i+(N/T*ID)+1;k++){
-		        parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
+		        parcialLC[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
 		    }
 		}
 	    }
@@ -193,7 +193,7 @@ int main(int argc,char*argv[]){
 	    for(i=0;i<N/T;i++){
 		for(j=0;j<N;j++){
 		    for(k = 0;k<j+1;k++){
-		        parcialDU_SUB[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
+		        parcialDU[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
 		    }
 		}
 	    }
@@ -202,7 +202,7 @@ int main(int argc,char*argv[]){
 	    for(i=0;i<N;i++){
 		for(j=0;j<N;j++){
 		    for(k=0;k<N;k++){
-		          parcialM[i*N+j] = ul*(parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);
+		          parcialM[i*N+j] = ul*(parcialAB[i*N+j] + parcialLC[i*N+j] + parcialDU[i*N+j]);
 		        }
 		    }
 		}
