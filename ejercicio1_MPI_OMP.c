@@ -57,7 +57,7 @@ int main(int argc,char*argv[]){
 	//printf("%d\n",world_size);
 	//int inicio = ((N)/T) * (ID);
 	//omp_iniciar(T);
-	omp_set_num_threads(1);
+	omp_set_num_threads(4);
 
 	A=(double*)malloc(sizeof(double)*N*N);
 	B=(double*)malloc(sizeof(double)*N*N);
@@ -144,7 +144,6 @@ int main(int argc,char*argv[]){
 	//temp1=omp_sumaTemp1(U,N,T);
 	//temp2=omp_sumaTemp2(pruebaL,N,T,ID);
 
-   	  
     #pragma omp parallel for ordered reduction(+:temp1) schedule(dynamic,2)
     for(i=0;i<N;i++){
 	for (j=i;j<N;j++){
@@ -170,7 +169,7 @@ int main(int argc,char*argv[]){
 	//omp_parcialAB(parcialAB_SUB,pruebaA,B,N,T);
     #pragma omp parallel
     {
-	    #pragma omp for 
+	    #pragma omp for shared(parcialAB,pruebaA,B) private(i,j,k)
 	    for(i=0;i<N/T;i++){   
 		for(j=0;j<N;j++){
 		    for(k = 0;k<N;k++){
