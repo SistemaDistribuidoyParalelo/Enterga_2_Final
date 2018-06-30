@@ -131,14 +131,14 @@ int main(int argc,char*argv[]){
 
     //HAY Q recorer todo asi que no importa la forma
   
-        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,8)
+        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,3)
         for(i=0;i<((N*(N+1))/2);i++){
                 temp1+=U[i];
         }
         temp1/=N*N; //el resultado parcial de las diviciones de las matrices
         //printf("%f\n", temp1);
 
-        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,8)
+        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,3)
         for(i=0;i < N/T;i++){
             for(k=0;k<i+((N/T)*(ID))+1;k++){
                 temp2+=pruebaL[i*N+k];
@@ -164,32 +164,25 @@ int main(int argc,char*argv[]){
             }
         }
 
-       #pragma omp for nowait schedule(dynamic,4)
-	    for(i=0;i<(N*N/T);i++){  
-		    parcialAB[i] = parcialAB[i]*ul;
-        }
 
     //MULTIPLICACION L*C
 
     //L es inferior, recorrido parcial
-        #pragma omp for private(i,j)
+        #pragma omp for reduction(+:temp) schedule(dynamic,3)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
+                temp = 0;
                 for(k = 0;k<i+(N/T*ID)+1;k++){
-                    parcialLC[i*N+j] +=pruebaL[i*N+k]*C[k+j*N];
+                    temp +=pruebaL[i*N+k]*C[k+j*N];
                 }
+                parcialLC[i*N+j]=temp;
             }
         }
-
-        #pragma omp for nowait schedule(dynamic,4)
-	    for(i=0;i<(N*N/T);i++){  
-		    parcialLC[i] = parcialLC[i]*ul;
-         }
 
     //MULTIPLICACION D*U
 
     //U es superior, recorrido parcial
-        #pragma omp for reduction(+:temp) schedule(dynamic,4)
+        #pragma omp for reduction(+:temp) schedule(dynamic,3)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 temp=0; 
@@ -200,23 +193,23 @@ int main(int argc,char*argv[]){
             }
         }
 
-        #pragma omp for nowait schedule(dynamic,4)
-        for(i=0;i<(N*N/T);i++){  
-            parcialDU[i] = parcialDU[i]*ul;
-        }
-
         // Resultado final
-        #pragma omp for nowait schedule(dynamic,4)
+        #pragma omp for nowait schedule(dynamic,3)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialLC[i*N+j];
             }
         }
-        #pragma omp for schedule(dynamic,8)
+        #pragma omp for nowait schedule(dynamic,3)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialDU[i*N+j];
             }
+        }
+        
+        #pragma omp for private(i)
+	    for(i=0;i<(N*N/T);i++){  
+		    parcialAB[i] = parcialAB[i]*ul;
         }
 
     }
@@ -228,14 +221,14 @@ int main(int argc,char*argv[]){
         printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
     }
 
-    /*if (ID==0){
+    if (ID==0){
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                 printf("%f  ",M[i*N+j]);
             }
             printf(" \n");
         }
-    }*/
+    }
 
     free(A);
     free(B);
