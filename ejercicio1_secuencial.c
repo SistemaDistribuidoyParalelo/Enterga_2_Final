@@ -5,51 +5,27 @@
 #include <unistd.h>
 
 
-//declaracion de variables
-
-int N; // tam de la matriz
-double *A,*B,*C,*D;
-double *L,*U; // matriz triangular L superior U inferior
-double *parcialAB,*parcialLC,*parcialDU; //matrices parciales
-double *M; //resultado final
-double ul,u,l,b; // promedios de las matrices U L y B
-double timetick;
-double sec;
-struct timeval tv;
-//DECLARACION DE FUNCIONES UTILIZADAS EN EL PROGRAMA
-
-void imprimeMatriz(double *S, int tipo_fc) {
-// Imprime la matriz pasada por parametro
-// N es la cantidad de bloques, r dimension de cada bloque
-  printf(" \n");
-  printf(" \n");
-  if(tipo_fc == 0){
-    for(int i=0;i<N;i++){
-            for(int j=0;j<N;j++){
-                printf("%f  ",S[i+j*N]);
-            }
-            printf(" \n");
-    }
-  }else{
-      for(int i=0;i<N;i++){
-            for(int j=0;j<N;j++){
-                printf("%f  ",S[i*N+j]);
-            }
-            printf(" \n");
-    }
-  }
-}
-
-
 //MAIN
 int main(int argc,char*argv[]){
-  double ul;
-  int i,j,k;
-  if ((argc != 2) || ((N = atoi(argv[1])) <= 0) )
-   {
-     printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
-     exit(1);
-   }
+    int N; // tam de la matriz
+    double *A,*B,*C,*D;
+    double *L,*U; // matriz triangular L superior U inferior
+    double *parcialAB,*parcialLC,*parcialDU; //matrices parciales
+    double *M; //resultado final
+    double temp,temp1,temp2,u,l,b;
+    double timetick;
+    double sec;
+    struct timeval tv;
+    //DECLARACION DE FUNCIONES UTILIZADAS EN EL PROGRAMA
+    double ul;
+    int i,j,k;
+ 
+    if ((argc != 2)){
+	     printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
+	     exit(1);
+	   }else{
+	       N=atoi(argv[1]);
+	}
 
    //ALOCACION DE MEMORIA PARA LAS MATRICES
     A=(double*)malloc(sizeof(double)*N*N);
@@ -92,18 +68,9 @@ int main(int argc,char*argv[]){
 
     
     // SACO PROMEDIOS QUE NECESITO
-    // PROMEDIO b
-    double temp,temp1,temp2,u,l,b;
-    temp=0;
     temp1=0;
     temp2=0;
-    //HAY Q recorer todo asi que no importa la forma
-    for(int i=0;i<N;i++){
-          for(int j=0;j<N;j++){
-              temp+=B[i*N+j];
-            }
-    }
-
+    
     for(i=0;i<N;i++){
         for (j=i;j<N;j++){
             temp1+=U[i+((j*(j+1))/2)];
@@ -117,13 +84,12 @@ int main(int argc,char*argv[]){
 		}
 	}
 
-    b=(temp/(N*N));
     u=(temp1/(N*N));
     l=(temp2/(N*N));
     ul=u*l;
-    printf("u = %f  l = %f", u,l);
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
+    printf("u = %f  l = %f \n", u,l);
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
             for(k = 0;k<N;k++){
                 parcialAB[i*N+j] +=A[i*N+k]*B[k*N+j];
             }
@@ -131,8 +97,8 @@ int main(int argc,char*argv[]){
     }
 
     //L es inferior, recorrido parcial
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
             for(k = 0;k<i+1;k++){
                 parcialLC[i*N+j] +=L[k+((i*(i+1)/2))]*C[j*N+k];
             }
@@ -140,19 +106,37 @@ int main(int argc,char*argv[]){
     }
 
     //U es superior
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
             for(k = 0;k<j+1;k++){
                 parcialDU[i*N+j] +=D[i*N+k]*U[k+((j*(j+1))/2)];
             }
         }
     }
-
+    
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
+            parcialAB[i*N+j] = parcialAB[i*N+j] * ul;
+        }
+    }
+    
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
+            parcialLC[i*N+j] = parcialLC[i*N+j] * ul;
+        }
+    }
+    
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
+            parcialDU[i*N+j] = parcialDU[i*N+j] * ul;
+        }
+    }
+    
     //Resultado Final
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
             for(k = 0;k<N;k++){
-                M[i*N+j] = ul*(parcialAB[i*N+j]+parcialLC[i*N+j]+parcialDU[i*N+j]);
+                M[i*N+j] = (parcialAB[i*N+j]+parcialLC[i*N+j]+parcialDU[i*N+j]);
             }
         }
     }
@@ -160,28 +144,12 @@ int main(int argc,char*argv[]){
     gettimeofday(&tv,NULL);
     timetick = tv.tv_sec + tv.tv_usec/1000000.0;
     printf("Tiempo en segundos %f\n", timetick - sec);
-    imprimeMatriz(M,1);
-
-/*
-    for (i = 0; i < N; i++){
-        for (j = 0; j < i+1; j++)
-        {
-            printf("U[%d] = %f\n", j+((i*(i+1))/2), U[j+((i*(i+1))/2)]);
-        }
-    }
-        printf("\n");
-    for (i = 0; i < N; i++){
-        for (j = 0; j < i+1; j++)
-        {
-            printf("L[%d] = %f\n", j+((i*(i+1))/2), L[j+((i*(i+1))/2)]);
-        }
-    }
-    
-    printf("\n");
-    imprimeMatriz(parcialAB,1);
-    imprimeMatriz(parcialLC,1);
-    imprimeMatriz(parcialDU,1);
-*/
+    /*for(int i=0;i<N;i++){
+            for(int j=0;j<N;j++){
+                printf("%f  ",M[i*N+j]);
+            }
+            printf(" \n");
+    }*/
     free(A);
     free(B);
     free(C);

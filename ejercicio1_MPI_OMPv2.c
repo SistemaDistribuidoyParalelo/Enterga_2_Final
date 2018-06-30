@@ -123,8 +123,8 @@ int main(int argc,char*argv[]){
 
     
     //printf("u = %f  l = %f \n", u,l);
-    startComunication = dwalltime();
-    cuentas = dwalltime();
+    tiempoComunicacion = dwalltime();
+    tiempoInicioCompleto = dwalltime();
     //COMUNICACION
     MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -135,34 +135,30 @@ int main(int argc,char*argv[]){
     MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 
     if (ID==0){
-        printf("El tiempo de comunicacion = %f \n", dwalltime() - startComunication);
+        printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
     }
     //TOMO EL TIEMPO DE INICIO
     // SACO PROMEDIOS QUE NECESITO
         // PROMEDIO b
 
     //HAY Q recorer todo asi que no importa la forma
-    #pragma omp parallel
-    {
-        #pragma omp for ordered reduction(+:temp1) schedule(static)
-        for(i=0;i<N;i++){
-            for (j=i;j<N;j++){
-                temp1+=U[i+((j*(j+1))/2)];
-            }
+   
+    #pragma omp parallel for reduction(+:temp1) 
+    for(i=0;i<N;i++){
+        for (j=i;j<N;j++){
+            temp1+=U[i+((j*(j+1))/2)];
         }
-
-        #pragma omp for ordered reduction(+:temp2) schedule(static)
-        for(i=0;i < N/T;i++){
-            for(k=0;k<i+((N/T)*(ID))+1;k++){
-                temp2+=pruebaL[i*N+k];
-            }
-        }
-
-        temp1/=N*N; //el resultado parcial de las diviciones de las matrices
-        //printf("%f\n", temp1);
-        temp2/=N*N;
-
     }
+    temp1/=N*N; //el resultado parcial de las diviciones de las matrices
+    //printf("%f\n", temp1);
+
+    #pragma omp parallel for reduction(+:temp2)
+    for(i=0;i < N/T;i++){
+        for(k=0;k<i+((N/T)*(ID))+1;k++){
+            temp2+=pruebaL[i*N+k];
+        }
+    }
+    temp2/=N*N;    
     
     MPI_Allreduce(&temp1,&u,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     MPI_Allreduce(&temp2,&l,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
@@ -233,9 +229,9 @@ int main(int argc,char*argv[]){
     MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
     if (ID==0){
-    printf("Tiempo en segundos %f\n", dwalltime() - cuentas);
+    printf("Tiempo en segundos %f\n", dwalltime() - tiempoInicioCompleto);
     }
-
+/*
     if (ID==0){
     for(i=0;i<N;i++){
             for(j=0;j<N;j++){
@@ -243,7 +239,7 @@ int main(int argc,char*argv[]){
             }
             printf(" \n");
     }}
-
+*/
     free(A);
     free(B);
     free(C);
