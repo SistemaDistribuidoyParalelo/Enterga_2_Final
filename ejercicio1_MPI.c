@@ -123,21 +123,18 @@ for(i=0;i<N;i++){
  
 //printf("u = %f  l = %f \n", u,l);
 startComunication = dwalltime();
-
 cuentas = dwalltime();
 //COMUNICACION
 MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialAB,(N*N)/T, MPI_DOUBLE, parcialAB_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialLC,(N*N)/T, MPI_DOUBLE, parcialLC_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Scatter(parcialDU,(N*N)/T, MPI_DOUBLE, parcialDU_SUB, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-MPI_Bcast(B,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-MPI_Bcast(C,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-MPI_Bcast(U,T,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+MPI_Bcast(B,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+MPI_Bcast(C,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+
 if (ID==0){
-  printf("El tiempo de comunicacion = %f", startComunication - dwalltime());
+  printf("El tiempo de comunicacion = %f \n", startComunication - dwalltime());
 }
 //TOMO EL TIEMPO DE INICIO
 // SACO PROMEDIOS QUE NECESITO
@@ -152,22 +149,22 @@ for(i=0;i<N;i++){
     }
 }
 //printf("%f\n", temp1);
+temp1/=N*N; //el resultado parcial de las diviciones de las matrices
 
 for(i=0;i < N/T;i++){
     for(k=0;k<i+((N/T)*(ID))+1;k++){
         temp2+=pruebaL[i*N+k];
 	}
 }
+temp2/=N*N;
+MPI_Allreduce(&temp1,&u,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+MPI_Allreduce(&temp2,&l,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
 
-MPI_Allreduce(&temp2,&sumTemp2,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-//printf("%f\n", sumTemp2);
-
-u=(temp1/(N*N));
-l=(sumTemp2/(N*N));
 ul=u*l;
-//MULTIPLICACION  A*B
+//printf("%f\n",ul);
 
-    for(i=0;i<N/T;i++){
+//MULTIPLICACION  A*B
+    for(i=0;i<N;i++){
         for(j=0;j<N;j++){
             for(k = 0;k<N;k++){
                 parcialAB_SUB[i*N+j] += pruebaA[i*N+k]*B[k*N+j];
@@ -175,84 +172,56 @@ ul=u*l;
         }
     }
 
-/*if(ID==0){
-for( i=0;i<N;i++){
-      for(int j=0;j<N;j++){
-          printf("%f  ",parcialAB[i*N+j]);
-      }
-      printf(" \n");
-}
-}
-      printf(" \n");
-*/
+    for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                parcialAB_SUB[i*N+j] = parcialAB_SUB[i*N+j] * ul;
+            }
+        }
+
 //MULTIPLICACION L*C
 
 
 
 //L es inferior, recorrido parcial
-for(i=0;i<N/T;i++){
-    for(j=0;j<N;j++){
-        for(k = 0;k<i+inicio+1;k++){
-            parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
+        for(i=0;i<N/T;i++){
+            for(j=0;j<N;j++){
+                for(k = 0;k<i+(N/T*ID)+1;k++){
+                    parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
+                }
+            }
         }
-    }
-}
 
-/*
-if(ID==0){
-for( i=0;i<N;i++){
-      for(int j=0;j<N;j++){
-          printf("%f  ",parcialLC[i*N+j]);
-      }
-      printf(" \n");
-}
-}*/
-/*for(int i=0;i<N;i++){
-      for(int j=0;j<N;j++){
-          printf("%f  ",parcialAB_SUB[i*N+j]);
-      }
-      printf(" \n");
-}*/
-
+        for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                parcialLC_SUB[i*N+j] = parcialLC_SUB[i*N+j] * ul;
+            }
+        }
 
 //MULTIPLICACION D*U
 
 
 //U es superior, recorrido parcial
-for(i=0;i<N/T;i++){
-    for(j=0;j<N;j++){
-        for(k = 0;k<j+1;k++){
-            parcialDU_SUB[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
+        for(i=0;i<N/T;i++){
+            for(j=0;j<N;j++){
+                for(k = 0;k<j+1;k++){
+                    parcialDU_SUB[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
+                }
+            }
         }
-    }
-}
-
-
-/*if (ID==0) {
-  for( i=0;i<N;i++){
-        for(int j=0;j<N;j++){
-            printf("%f  ",parcialDU[i*N+j]);
+        for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                parcialDU_SUB[i*N+j] = parcialDU_SUB[i*N+j] * ul;
+            }
         }
-        printf(" \n");
-  }}*/
-  /*for( i=0;i<N;i++){
-      for(int j=0;j<N;j++){
-          printf("%f  ",parcialDU_SUB[i*N+j]);
-      }
-      printf(" \n");
-}*/
 
 
-
-
-
-for(i=0;i<N;i++){
-    for(j=0;j<N;j++){
-        for(k=0;k<N;k++){
-            parcialM[i*N+j] = ul*(parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);
+        for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                for(k=0;k<N;k++){
+                    parcialM[i*N+j] = (parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);
+                }
+            }
         }
-    }
-}
 
 MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
@@ -262,13 +231,13 @@ if (ID==0){
 
 
 
-/*if (ID==0){
+if (ID==0){
   for(i=0;i<N;i++){
         for(j=0;j<N;j++){
             printf("%f  ",M[i*N+j]);
         }
         printf(" \n");
-  }}*/
+  }}
 
 free(A);
 free(B);
