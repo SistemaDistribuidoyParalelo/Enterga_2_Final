@@ -66,6 +66,7 @@ U=(double*)malloc(sizeof(double)*((N*(N+1))/2)); //superior
 L=(double*)malloc(sizeof(double)*N*N); //inferior
 M=(double*)malloc(sizeof(double)*N*N);
 
+
 pruebaA=(double*)malloc(sizeof(double)*N*N);
 pruebaB=(double*)malloc(sizeof(double)*N*N);
 pruebaD=(double*)malloc(sizeof(double)*N*N);
@@ -134,7 +135,7 @@ MPI_Bcast(C,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este 
 MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 
 if (ID==0){
-  printf("El tiempo de comunicacion = %f \n", startComunication - dwalltime());
+  printf("El tiempo de comunicacion = %f \n", dwalltime() - startComunication);
 }
 //TOMO EL TIEMPO DE INICIO
 // SACO PROMEDIOS QUE NECESITO
@@ -142,14 +143,14 @@ if (ID==0){
 
 //HAY Q recorer todo asi que no importa la forma
 
-//printf("%f \n", sumTemp);
 for(i=0;i<N;i++){
     for (j=i;j<N;j++){
         temp1+=U[i+((j*(j+1))/2)];
     }
 }
-//printf("%f\n", temp1);
+
 temp1/=N*N; //el resultado parcial de las diviciones de las matrices
+//printf("%f\n", temp1);
 
 for(i=0;i < N/T;i++){
     for(k=0;k<i+((N/T)*(ID))+1;k++){
@@ -157,6 +158,7 @@ for(i=0;i < N/T;i++){
 	}
 }
 temp2/=N*N;
+
 MPI_Allreduce(&temp1,&u,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
 MPI_Allreduce(&temp2,&l,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
 
@@ -226,10 +228,8 @@ ul=u*l;
 MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
 if (ID==0){
-   printf("Tiempo en segundos %f\n", cuentas - dwalltime());
+   printf("Tiempo en segundos %f\n", dwalltime() - cuentas);
 }
-
-
 
 if (ID==0){
   for(i=0;i<N;i++){
@@ -259,5 +259,6 @@ free(pruebaL);
 free(pruebaD);
 
 MPI_Finalize();
+
 return 0;
 }
