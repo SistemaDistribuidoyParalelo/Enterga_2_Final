@@ -8,16 +8,15 @@
 
 //Para calcular tiempo
 double dwalltime(){
-        double sec;
-        struct timeval tv;
+	double sec;
+	struct timeval tv;
 
-        gettimeofday(&tv,NULL);
-        sec = tv.tv_sec + tv.tv_usec/1000000.0;
-        return sec;
+	gettimeofday(&tv,NULL);
+	sec = tv.tv_sec + tv.tv_usec/1000000.0;
+	return sec;
 }
 
 int main(int argc, char** argv){
-
 	int miID; int cantidadDeProcesos;
 	int N; // Dimension de la matriz
 	int sizeMatrix; // Cantidad total de datos matriz 	
@@ -190,7 +189,7 @@ int main(int argc, char** argv){
 	tiempo_balance = dwalltime() - tiempo_balance;
 	printf("Tiempo en segundos paralelo %f \n", tiempo_paral);
 	printf("Tiempo en segundos balance %f \n", tiempo_balance);
-/*
+
 	if(miID==0){
 		for (int j=0; j<N; j++){
 			for (int i=0; i<N; i++){
@@ -199,7 +198,7 @@ int main(int argc, char** argv){
 			printf ("\n");
 		}
 	}
-*/
+
 	//***** FIN PROGRAMA ****
 	
 	free(B);

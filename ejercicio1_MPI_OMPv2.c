@@ -19,7 +19,6 @@ double dwalltime(){
 int main(int argc,char*argv[]){
     double *A,*B,*C,*D,*L,*U; // Matrices iniciales
 	double *parcialAB,*parcialLC,*parcialDU,*parcialM; //matrices resultados parciales
-	double *parcialAB_SUB,*parcialLC_SUB,*parcialDU_SUB; //matrices distribuidos parciales
 	double *pruebaA,*pruebaB,*pruebaL,*pruebaD;// temporales partidas de cada matriz
 	double *M; //resultado final
 	double sumTemp2,temp,temp1,temp2,temp3,u,l,b,ul;
@@ -78,10 +77,7 @@ int main(int argc,char*argv[]){
     parcialDU=(double*)malloc(sizeof(double)*N*N);
     parcialM=(double*)malloc(sizeof(double)*N*N);
 
-    parcialAB_SUB=(double*)malloc(sizeof(double)*N*N);
-    parcialLC_SUB=(double*)malloc(sizeof(double)*N*N);
-    parcialDU_SUB=(double*)malloc(sizeof(double)*N*N);
-
+   
     //printf("Esta funcion es la %d ",ID);
     printf(" \n");
     for(i=0;i<N;i++){
@@ -96,11 +92,6 @@ int main(int argc,char*argv[]){
             parcialAB[i*N+j]=0;
             parcialDU[i*N+j]=0;
             parcialM[i*N+j]=0;
-
-            parcialAB_SUB[i*N+j]=0;
-            parcialLC_SUB[i*N+j]=0;
-            parcialDU_SUB[i*N+j]=0;
-
 
             pruebaA[j*N+i]=1; //ORDENXCOLUMNAS
             pruebaB[i*N+j]=1; //ORDENXFILAS
@@ -125,121 +116,127 @@ int main(int argc,char*argv[]){
     //printf("u = %f  l = %f \n", u,l);
     tiempoComunicacion = dwalltime();
     tiempoInicioCompleto = dwalltime();
+    
     //COMUNICACION
     MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(D,(N*N)/T, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Scatter(M,(N*N)/T, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(B,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(C,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 
-    if (ID==0){
-        printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
-    }
     //TOMO EL TIEMPO DE INICIO
     // SACO PROMEDIOS QUE NECESITO
         // PROMEDIO b
 
     //HAY Q recorer todo asi que no importa la forma
-   
-    #pragma omp parallel for reduction(+:temp1) 
-    for(i=0;i<N;i++){
-        for (j=i;j<N;j++){
-            temp1+=U[i+((j*(j+1))/2)];
+  
+        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,8)
+        for(i=0;i<((N*(N+1))/2);i++){
+                temp1+=U[i];
         }
-    }
-    temp1/=N*N; //el resultado parcial de las diviciones de las matrices
-    //printf("%f\n", temp1);
+        temp1/=N*N; //el resultado parcial de las diviciones de las matrices
+        //printf("%f\n", temp1);
 
-    #pragma omp parallel for reduction(+:temp2)
-    for(i=0;i < N/T;i++){
-        for(k=0;k<i+((N/T)*(ID))+1;k++){
-            temp2+=pruebaL[i*N+k];
+        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,8)
+        for(i=0;i < N/T;i++){
+            for(k=0;k<i+((N/T)*(ID))+1;k++){
+                temp2+=pruebaL[i*N+k];
+            }
         }
-    }
-    temp2/=N*N;    
-    
+        temp2/=N*N;    
+   
+
     MPI_Allreduce(&temp1,&u,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     MPI_Allreduce(&temp2,&l,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
 
     ul=u*l;
     //printf("%f\n",ul);
-
+    #pragma omp parallel
+    {
     //MULTIPLICACION  A*B
-        for(i=0;i<N;i++){
+        #pragma omp for private(i,j)
+        for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 for(k = 0;k<N;k++){
-                    parcialAB_SUB[i*N+j] += pruebaA[i*N+k]*B[k*N+j];
+                    parcialAB[i*N+j] += pruebaA[i*N+k]*B[k+j*N];
                 }
             }
         }
 
-        for(i=0;i<N;i++){
-                for(j=0;j<N;j++){
-                    parcialAB_SUB[i*N+j] = parcialAB_SUB[i*N+j] * ul;
-                }
-            }
+       #pragma omp for nowait schedule(dynamic,4)
+	    for(i=0;i<(N*N/T);i++){  
+		    parcialAB[i] = parcialAB[i]*ul;
+        }
 
     //MULTIPLICACION L*C
 
-
-
     //L es inferior, recorrido parcial
-            for(i=0;i<N/T;i++){
-                for(j=0;j<N;j++){
-                    for(k = 0;k<i+(N/T*ID)+1;k++){
-                        parcialLC_SUB[i*N+j] +=pruebaL[i*N+k]*C[j*N+k];
-                    }
+        #pragma omp for private(i,j)
+        for(i=0;i<N/T;i++){
+            for(j=0;j<N;j++){
+                for(k = 0;k<i+(N/T*ID)+1;k++){
+                    parcialLC[i*N+j] +=pruebaL[i*N+k]*C[k+j*N];
                 }
             }
+        }
 
-            for(i=0;i<N;i++){
-                for(j=0;j<N;j++){
-                    parcialLC_SUB[i*N+j] = parcialLC_SUB[i*N+j] * ul;
-                }
-            }
+        #pragma omp for nowait schedule(dynamic,4)
+	    for(i=0;i<(N*N/T);i++){  
+		    parcialLC[i] = parcialLC[i]*ul;
+         }
 
     //MULTIPLICACION D*U
 
-
     //U es superior, recorrido parcial
-            for(i=0;i<N/T;i++){
-                for(j=0;j<N;j++){
-                    for(k = 0;k<j+1;k++){
-                        parcialDU_SUB[i*N+j] +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
-                    }
+        #pragma omp for reduction(+:temp) schedule(dynamic,4)
+        for(i=0;i<N/T;i++){
+            for(j=0;j<N;j++){
+                temp=0; 
+                for(k = 0;k<j+1;k++){
+                    temp +=pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
                 }
+                parcialDU[i*N+j] = temp;
             }
-            for(i=0;i<N;i++){
-                for(j=0;j<N;j++){
-                    parcialDU_SUB[i*N+j] = parcialDU_SUB[i*N+j] * ul;
-                }
+        }
+
+        #pragma omp for nowait schedule(dynamic,4)
+        for(i=0;i<(N*N/T);i++){  
+            parcialDU[i] = parcialDU[i]*ul;
+        }
+
+        // Resultado final
+        #pragma omp for nowait schedule(dynamic,4)
+        for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                    parcialAB[i*N+j] = parcialAB[i*N+j] + parcialLC[i*N+j];
             }
-
-
-            for(i=0;i<N;i++){
-                for(j=0;j<N;j++){
-                    for(k=0;k<N;k++){
-                        parcialM[i*N+j] = (parcialAB_SUB[i*N+j]+parcialLC_SUB[i*N+j]+parcialDU_SUB[i*N+j]);
-                    }
-                }
+        }
+        #pragma omp for schedule(dynamic,8)
+        for(i=0;i<N;i++){
+            for(j=0;j<N;j++){
+                    parcialAB[i*N+j] = parcialAB[i*N+j] + parcialDU[i*N+j];
             }
+        }
 
-    MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-    if (ID==0){
-    printf("Tiempo en segundos %f\n", dwalltime() - tiempoInicioCompleto);
     }
-/*
+
+    MPI_Gather(parcialAB,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
     if (ID==0){
-    for(i=0;i<N;i++){
+        printf("Tiempo en segundos %f\n", dwalltime() - tiempoInicioCompleto);
+        printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
+    }
+
+    /*if (ID==0){
+        for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                 printf("%f  ",M[i*N+j]);
             }
             printf(" \n");
-    }}
-*/
+        }
+    }*/
+
     free(A);
     free(B);
     free(C);
@@ -250,10 +247,6 @@ int main(int argc,char*argv[]){
     free(parcialAB);
     free(parcialLC);
     free(parcialDU);
-    free(parcialM);
-    free(parcialAB_SUB);
-    free(parcialDU_SUB);
-    free(parcialLC_SUB);
     free(pruebaA);
     free(pruebaB);
     free(pruebaL);

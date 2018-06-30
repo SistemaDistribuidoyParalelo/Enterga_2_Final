@@ -129,7 +129,7 @@ int main(int argc,char*argv[]){
 	MPI_Scatter(A,parteMatriz, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Scatter(L,parteMatriz, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Scatter(D,parteMatriz, MPI_DOUBLE, pruebaD, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Scatter(M,parteMatriz, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	//MPI_Scatter(M,parteMatriz, MPI_DOUBLE, parcialM, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	MPI_Bcast(B,(N*N),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
 	MPI_Bcast(C,(N*N),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
@@ -139,7 +139,7 @@ int main(int argc,char*argv[]){
 	
 
     #pragma omp parallel for ordered reduction(+:temp1) schedule(static)
-    for(i=0;i<N;i++){
+    for(i=0;i<((N*(N+1))/2);i++){
        temp1+=U[i];
     }
     temp1/=(N*N);
@@ -183,11 +183,11 @@ int main(int argc,char*argv[]){
 		//MULTIPLICACION D*U
 	    #pragma omp for 
 	    for(i=0;i<N/T;i++){
-		for(j=0;j<N;j++){
-		    for(k = 0;k<j+1;k++){
-	       		parcialDU[i*N+j]  += pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
-		    }
-		}
+			for(j=0;j<N;j++){
+				for(k = 0;k<j+1;k++){
+					parcialDU[i*N+j]  += pruebaD[i*N+k]*U[k+((j*(j+1))/2)];
+				}
+			}
 	    }
 	    
 	 #pragma omp for
@@ -204,10 +204,8 @@ int main(int argc,char*argv[]){
 	 }
 	    #pragma omp for
 	    for(i=0;i<N;i++){
-		for(j=0;j<N;j++){
-		    for(k=0;k<N;k++){
-			  parcialM[i*N+j] = (parcialAB[i*N+j] + parcialLC[i*N+j] + parcialDU[i*N+j]);
-			}
+			for(j=0;j<N;j++){
+					parcialM[i*N+j] = (parcialAB[i*N+j] + parcialLC[i*N+j] + parcialDU[i*N+j]);
 		    }
 		}
 	     
@@ -215,14 +213,14 @@ int main(int argc,char*argv[]){
 }
      MPI_Gather(parcialM,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
-	/*if (ID==0){
+	if (ID==0){
 	  for(i=0;i<N;i++){
 		for(j=0;j<N;j++){
 		    printf("%f  ",M[i*N+j]);
 		}
 		printf(" \n");
 	  }}
-	*/
+	
 	printf("El tiempo del proceso %d = %f \n",ID,dwalltime()-tiempoInicioCompleto);
 	printf("La comunicacion del ID = %d es en segundos = %f \n",ID,dwalltime()-tiempoComunicacion);
 
