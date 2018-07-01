@@ -114,24 +114,6 @@ int main(int argc,char*argv[]){
         }
     }
     
-    for(i=0;i<N;i++){
-        for(j=0;j<N;j++){
-            parcialAB[i*N+j] = parcialAB[i*N+j] * ul;
-        }
-    }
-    
-    for(i=0;i<N;i++){
-        for(j=0;j<N;j++){
-            parcialLC[i*N+j] = parcialLC[i*N+j] * ul;
-        }
-    }
-    
-    for(i=0;i<N;i++){
-        for(j=0;j<N;j++){
-            parcialDU[i*N+j] = parcialDU[i*N+j] * ul;
-        }
-    }
-    
     //Resultado Final
     for(i=0;i<N;i++){
             for(j=0;j<N;j++){
@@ -144,6 +126,12 @@ int main(int argc,char*argv[]){
             }
         }
 
+
+    for(i=0;i<N;i++){
+        for(j=0;j<N;j++){
+            parcialAB[i*N+j] = parcialAB[i*N+j] * ul;
+        }
+    }
     gettimeofday(&tv,NULL);
     timetick = tv.tv_sec + tv.tv_usec/1000000.0;
     printf("Tiempo en segundos %f\n", timetick - sec);

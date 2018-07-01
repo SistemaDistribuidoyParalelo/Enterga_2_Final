@@ -26,7 +26,7 @@ int main(int argc,char*argv[]){
 	int i,j,k;
 	int N; //TAMANIO DE LA MATRIZ
 	int T; //NROPROCESADORES
-    
+    int cantidad = 8;
     if ((argc != 2)){
         printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
         exit(1);
@@ -114,9 +114,8 @@ int main(int argc,char*argv[]){
 
     
     //printf("u = %f  l = %f \n", u,l);
-    tiempoComunicacion = dwalltime();
+
     tiempoInicioCompleto = dwalltime();
-    
     //COMUNICACION
     MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -124,21 +123,21 @@ int main(int argc,char*argv[]){
     MPI_Bcast(B,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(C,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-
+    tiempoComunicacion = dwalltime();
     //TOMO EL TIEMPO DE INICIO
     // SACO PROMEDIOS QUE NECESITO
         // PROMEDIO b
 
     //HAY Q recorer todo asi que no importa la forma
   
-        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,3)
+        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,cantidad)
         for(i=0;i<((N*(N+1))/2);i++){
                 temp1+=U[i];
         }
         temp1/=N*N; //el resultado parcial de las diviciones de las matrices
         //printf("%f\n", temp1);
 
-        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,3)
+        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,cantidad)
         for(i=0;i < N/T;i++){
             for(k=0;k<i+((N/T)*(ID))+1;k++){
                 temp2+=pruebaL[i*N+k];
@@ -155,9 +154,10 @@ int main(int argc,char*argv[]){
     #pragma omp parallel
     {
     //MULTIPLICACION  A*B
-        #pragma omp for private(i,j)
-        for(i=0;i<N/T;i++){
+        #pragma omp for private(i)
+        for(i=0;i<N/T;i++){ 
             for(j=0;j<N;j++){
+                 parcialAB[i*N+j] = 0;
                 for(k = 0;k<N;k++){
                     parcialAB[i*N+j] += pruebaA[i*N+k]*B[k+j*N];
                 }
@@ -168,7 +168,7 @@ int main(int argc,char*argv[]){
     //MULTIPLICACION L*C
 
     //L es inferior, recorrido parcial
-        #pragma omp for reduction(+:temp) schedule(dynamic,3)
+        #pragma omp for reduction(+:temp) schedule(dynamic,cantidad)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 temp = 0;
@@ -182,7 +182,7 @@ int main(int argc,char*argv[]){
     //MULTIPLICACION D*U
 
     //U es superior, recorrido parcial
-        #pragma omp for reduction(+:temp) schedule(dynamic,3)
+        #pragma omp for reduction(+:temp) schedule(dynamic,cantidad)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 temp=0; 
@@ -194,20 +194,20 @@ int main(int argc,char*argv[]){
         }
 
         // Resultado final
-        #pragma omp for nowait schedule(dynamic,3)
+        #pragma omp for nowait schedule(dynamic,cantidad)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialLC[i*N+j];
             }
         }
-        #pragma omp for nowait schedule(dynamic,3)
+        #pragma omp for schedule(dynamic,cantidad)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialDU[i*N+j];
             }
         }
         
-        #pragma omp for private(i)
+        #pragma omp for private(i) 
 	    for(i=0;i<(N*N/T);i++){  
 		    parcialAB[i] = parcialAB[i]*ul;
         }
@@ -221,14 +221,14 @@ int main(int argc,char*argv[]){
         printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
     }
 
-    if (ID==0){
+    /*if (ID==0){
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){
                 printf("%f  ",M[i*N+j]);
             }
             printf(" \n");
         }
-    }
+    }*/
 
     free(A);
     free(B);

@@ -190,14 +190,14 @@ int main(int argc, char** argv){
 	printf("Tiempo en segundos paralelo %f \n", tiempo_paral);
 	printf("Tiempo en segundos balance %f \n", tiempo_balance);
 
-	if(miID==0){
+	/*if(miID==0){
 		for (int j=0; j<N; j++){
 			for (int i=0; i<N; i++){
 				printf ("%lf \t",M[j*N+i]);
 			}
 			printf ("\n");
 		}
-	}
+	}*/
 
 	//***** FIN PROGRAMA ****
 	
