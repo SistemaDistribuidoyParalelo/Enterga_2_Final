@@ -112,6 +112,7 @@ int main(int argc,char*argv[]){
     //printf("u = %f  l = %f \n", u,l);
 
     tiempoInicioCompleto = dwalltime();
+    
     //COMUNICACION
     MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -119,6 +120,7 @@ int main(int argc,char*argv[]){
     MPI_Bcast(B,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(C,N*N,MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
     MPI_Bcast(U,((N*(N+1))/2),MPI_DOUBLE,0,MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
+    
     tiempoComunicacion = dwalltime();
     //TOMO EL TIEMPO DE INICIO
     // SACO PROMEDIOS QUE NECESITO
@@ -200,11 +202,9 @@ int main(int argc,char*argv[]){
 
     MPI_Gather(parcialAB,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
-    if (ID==0){
-        printf("Tiempo en segundos %f\n", dwalltime() - tiempoInicioCompleto);
-        printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
-    }
-
+    printf("ID = %d  | El tiempo de comunicacion = %f \n",ID , dwalltime() - tiempoComunicacion);
+    printf("ID = %d  | Tiempo en segundos %f\n", ID,dwalltime() - tiempoInicioCompleto);
+    
     /*if (ID==0){
         for(i=0;i<N;i++){
             for(j=0;j<N;j++){

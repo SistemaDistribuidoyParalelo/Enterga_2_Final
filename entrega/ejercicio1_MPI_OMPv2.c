@@ -26,7 +26,7 @@ int main(int argc,char*argv[]){
 	int i,j,k;
 	int N; //TAMANIO DE LA MATRIZ
 	int T; //NROPROCESADORES
-    int cantidad = 4;
+	int cantidad = 8;
     if ((argc != 2)){
         printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
         exit(1);
@@ -116,6 +116,7 @@ int main(int argc,char*argv[]){
     //printf("u = %f  l = %f \n", u,l);
 
     tiempoInicioCompleto = dwalltime();
+    
     //COMUNICACION
     MPI_Scatter(A,(N*N)/T, MPI_DOUBLE, pruebaA, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(L,(N*N)/T, MPI_DOUBLE, pruebaL, (N*N)/T, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -216,11 +217,10 @@ int main(int argc,char*argv[]){
     }
 
     MPI_Gather(parcialAB,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-    if (ID==0){
-        printf("Tiempo en segundos %f\n", dwalltime() - tiempoInicioCompleto);
-        printf("El tiempo de comunicacion = %f \n", dwalltime() - tiempoComunicacion);
-    }
+    
+    printf("ID = %d  | El tiempo de comunicacion = %f \n",ID , dwalltime() - tiempoComunicacion);
+    printf("ID = %d  | Tiempo en segundos %f\n", ID,dwalltime() - tiempoInicioCompleto);
+    
 
     /*if (ID==0){
         for(i=0;i<N;i++){
@@ -230,7 +230,7 @@ int main(int argc,char*argv[]){
             printf(" \n");
         }
     }*/
-
+	
     free(A);
     free(B);
     free(C);
