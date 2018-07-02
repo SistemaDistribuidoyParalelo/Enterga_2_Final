@@ -26,7 +26,7 @@ int main(int argc,char*argv[]){
 	int i,j,k;
 	int N; //TAMANIO DE LA MATRIZ
 	int T; //NROPROCESADORES
-    int cantidad = 8;
+    int cantidad = 4;
     if ((argc != 2)){
         printf("\nUsar: %s n\n  n: Dimension de la matriz (nxn X nxn)\n", argv[0]);
         exit(1);

@@ -85,7 +85,7 @@ int main(int argc,char*argv[]){
     u=(temp1/(N*N));
     l=(temp2/(N*N));
     ul=u*l;
-    printf("u = %f  l = %f \n", u,l);
+    //printf("u = %f  l = %f \n", u,l);
     for(i=0;i<N;i++){
         for(j=0;j<N;j++){
             for(k = 0;k<N;k++){
