@@ -4,7 +4,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <mpi.h>
-#include <omp.h>
 
 
 double dwalltime(){
@@ -53,9 +52,6 @@ int main(int argc,char*argv[]){
 
     T = world_size;
     int inicio = ((N)/T) * (ID);
-
-	omp_set_num_threads(4);
-
 
     A=(double*)malloc(sizeof(double)*N*N);
     B=(double*)malloc(sizeof(double)*N*N);
@@ -130,34 +126,27 @@ int main(int argc,char*argv[]){
 
     //HAY Q recorer todo asi que no importa la forma
   
-        #pragma omp paralell for reduction(+:temp1) schedule(dynamic,cantidad)
-        for(i=0;i<((N*(N+1))/2);i++){
+        for(i=0;i<((N*(N+1))/2)/T;i++){
                 temp1+=U[i];
         }
         temp1/=N*N; //el resultado parcial de las diviciones de las matrices
         //printf("%f\n", temp1);
 
-        #pragma omp parallel for reduction(+:temp2) schedule(dynamic,cantidad)
-        for(i=0;i < N/T;i++){
+        for(i=0;i <N/T;i++){
             for(k=0;k<i+((N/T)*(ID))+1;k++){
                 temp2+=pruebaL[i*N+k];
             }
         }
         temp2/=N*N;    
-   
 
     MPI_Allreduce(&temp1,&u,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     MPI_Allreduce(&temp2,&l,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-
+    //printf("%f\n", u);
     ul=u*l;
     //printf("%f\n",ul);
-    #pragma omp parallel
-    {
     //MULTIPLICACION  A*B
-        #pragma omp for private(i)
         for(i=0;i<N/T;i++){ 
             for(j=0;j<N;j++){
-                 parcialAB[i*N+j] = 0;
                 for(k = 0;k<N;k++){
                     parcialAB[i*N+j] += pruebaA[i*N+k]*B[k+j*N];
                 }
@@ -168,7 +157,6 @@ int main(int argc,char*argv[]){
     //MULTIPLICACION L*C
 
     //L es inferior, recorrido parcial
-        #pragma omp for reduction(+:temp) schedule(dynamic,cantidad)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 temp = 0;
@@ -182,7 +170,6 @@ int main(int argc,char*argv[]){
     //MULTIPLICACION D*U
 
     //U es superior, recorrido parcial
-        #pragma omp for reduction(+:temp) schedule(dynamic,cantidad)
         for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                 temp=0; 
@@ -194,25 +181,22 @@ int main(int argc,char*argv[]){
         }
 
         // Resultado final
-        #pragma omp for nowait schedule(dynamic,cantidad)
-        for(i=0;i<N;i++){
+        for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialLC[i*N+j];
             }
         }
-        #pragma omp for schedule(dynamic,cantidad)
-        for(i=0;i<N;i++){
+        for(i=0;i<N/T;i++){
             for(j=0;j<N;j++){
                     parcialAB[i*N+j] = parcialAB[i*N+j] + parcialDU[i*N+j];
             }
         }
         
-        #pragma omp for private(i) 
 	    for(i=0;i<(N*N/T);i++){  
 		    parcialAB[i] = parcialAB[i]*ul;
         }
 
-    }
+
 
     MPI_Gather(parcialAB,(N*N)/T,MPI_DOUBLE,M,(N*N)/T,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
